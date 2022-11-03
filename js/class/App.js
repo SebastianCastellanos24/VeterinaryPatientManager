@@ -1,4 +1,4 @@
-import { dateFiles, newDate } from "../functions.js";
+import { dateFiles, newDate, makeDB } from "../functions.js";
 import { petInput, ownerInput, cellphoneInput, dayInput, hourInput, symptomsInput, form } from "../selectors.js"
 
 export default class App {
@@ -16,6 +16,9 @@ export default class App {
         symptomsInput.addEventListener("blur", dateFiles);
     
         form.addEventListener("submit", newDate);
+
+        makeDB();
     }
 
 }
+

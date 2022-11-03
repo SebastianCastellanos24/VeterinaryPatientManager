@@ -7,6 +7,7 @@ const manageDates = new Dates();
 const ui = new UI(manageDates);
 
 let editing;
+export let Db;
 
 const dateObj = {
     petName: "",
@@ -34,20 +35,36 @@ export function newDate(e) {
     }
 
     if(editing) {
-        ui.showAlert("The date was edited successfully");
 
         manageDates.editDate({...dateObj})
-        
-        form.querySelector('button[type="submit"]').textContent = "Create date";
 
-        editing = false;
+        //Edit the index db files
+        const transaction = Db.transaction(["dates"], "readwrite");
+        const objectStore = transaction.objectStore("dates");
+        objectStore.put(dateObj);
+
+        transaction.oncomplete = function () {
+            ui.showAlert("The date was edited successfully");
+            form.querySelector('button[type="submit"]').textContent = "Create date";
+            editing = false;
+        }
+
+        transaction.onerror = function () {
+            ui.showAlert("Error in data base", "error");
+        }
 
     } else {
         dateObj.id = Date.now();
 
         manageDates.addDate({...dateObj});
-        
-        ui.showAlert("The date was added successfully");
+
+        //Add to index bd
+        const transaction = Db.transaction(["dates"], "readwrite");
+        const objectStore = transaction.objectStore("dates");
+        objectStore.add(dateObj);
+        transaction.oncomplete = function () {
+            ui.showAlert("The date was added successfully");
+        }
     }
 
     //Reset Obj
@@ -57,7 +74,7 @@ export function newDate(e) {
     form.reset();
 
     //Show HTML
-    ui.printDates(manageDates);
+    ui.printDates();
 
 }
 
@@ -72,14 +89,19 @@ export function resetObj() {
 
 export function deleteDates (id) {
     //Delete date
-    manageDates.deleteDate(id);
+    const transaction = Db.transaction( ["dates"], "readwrite" );
+    const objectStore = transaction.objectStore("dates");
+    objectStore.delete(id);
 
-    ui.showAlert("The date has been deleted successfully");
+    transaction.oncomplete = function () {
+        ui.showAlert("The date has been deleted successfully");
+        ui.printDates();
+    }
 
-    ui.printDates(manageDates);
-
-    console.log(manageDates);
-
+    transaction.onerror = function () {
+        ui.showAlert("Error in data base", "error");
+    }
+    
 }
 
 export function editDates(date) {
@@ -104,5 +126,39 @@ export function editDates(date) {
     form.querySelector('button[type="submit"]').textContent = "Save changes";
 
     editing = true;
+
+}
+
+export function makeDB () {
+    const makeDB = window.indexedDB.open("dates", 1);
+
+    //If db have a mistake
+    makeDB.onerror = function () {
+        console.log("Error");
+    }
+
+    //If all is correct
+    makeDB.onsuccess = function () {
+        console.log("Bd maked");
+        Db = makeDB.result;
+        ui.printDates();
+    }
+
+    makeDB.onupgradeneeded = function (e) {
+        const db = e.target.result;
+        const objectStore = db.createObjectStore("dates", {
+            keyPath: "id",
+            autoIncrement: true
+        });
+        objectStore.createIndex( "petName", "petName", { unique: false } );
+        objectStore.createIndex( "owner", "owner", { unique: false } );
+        objectStore.createIndex( "cellphone", "cellphone", { unique: false } );
+        objectStore.createIndex( "day", "day", { unique: false } );
+        objectStore.createIndex( "hour", "hour", { unique: false } );
+        objectStore.createIndex( "symptoms", "symptoms", { unique: false } );
+        objectStore.createIndex( "id", "id", { unique: true } );
+
+        console.log("Creada y lista")
+    }
 
 }
